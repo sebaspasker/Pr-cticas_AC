@@ -1,8 +1,20 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+#include <windows.h>
+#include <synchapi.h>
 
 using namespace std;
+
+bool equal_arr(int* arr1, int* arr2, unsigned int arr_size) {
+	for (unsigned int i = 0; i < arr_size; i++) {
+		if (arr1[i] != arr2[i]) {
+			return false;
+		}
+	}
+
+	return true;
+}
 
 int* randomArrayNumbers(unsigned int size) {
 	int* arr = new int[size];
@@ -27,148 +39,97 @@ void print_arr(int* arr, unsigned int size) {
 }
 
 void print_time(clock_t start, clock_t end) {
-	time_t time = (end - start) / CLOCKS_PER_SEC;
-	printf("Time it took to run the function: %f\n", (double) time);
+	printf_s("Time it took to run the function: %.6f", (float)(end - start) / CLOCKS_PER_SEC);
 }
 
-// ---------------------INSERTION SORT--------------------
+// ----------------------- FIBONACCI ---------------------
 // --------------------------- C -------------------------
 
-void insertionSortC(int* arr, unsigned int n) {
-	int* sorted_arr = arr;
-	unsigned int j;
-	int key;
-	for (unsigned int i = 0; i < n; i++) {
-		// Reference number
-		key = sorted_arr[i];
-		// Inferior numbers to reference
-		j = i - 1;
-		
-		// All values inferior to key go to his left side
-		while (j >= 0 && sorted_arr[j] > key) {
-			sorted_arr[j + 1] = sorted_arr[j];
-			j--;
-		}
-
-		arr[j + 1] = key;
+void fibonacci_C(int* arr_, unsigned int n) {
+	int t1, t2, sum;
+	t1 = 0;
+	t2 = 1;
+	arr_[0] = t1;
+	arr_[1] = t2;
+	for (unsigned int i = 2; i < n; i++) {
+		sum = t1 + t2;
+		arr_[i] = sum;
+		t1 = t2;
+		t2 = sum;
 	}
 }
 
-// --------------------- INSERTION SORT --------------------
-// --------------------- ASSEMBLER X86 -----------------------
+// ----------------------- FIBONACCI ---------------------
+// --------------------- ASSEMBLER X86 -------------------
 
-int* insertionSortAssembler(int* arr, int size_arr) {
-	int* arr_sorted = arr;
+void fibonacci_assemb(int* arr, unsigned int n) {
+	int* sorted_arr = arr;
 	__asm {
-		push ebp
-		//mov ebp, esp
-		push ebx
-		push esi
-		push edi
+		mov esi, sorted_arr // empty arr
+		mov eax, 0 // first number
+		mov ebx, 1 // second number
+		mov ecx, n // counter
+		sub ecx, 2
 
-		mov esi, arr_sorted // array
-		mov eax, 1 // i
-		mov ebx, 0 // j
-		mov ecx, size_arr // number of numbers
-		
+		mov [esi], eax
+		add esi, 4
+		mov [esi], ebx
+		add esi, 4
+
+		jmp _end_loop_1
 _loop_1:
-			cmp eax, ecx
-			//jnbe _end_loop_1
-			jbe _end_loop_1
-
-			push ecx // save number of array
-
-			// ecx = array[i]
-			mov ecx, [esi + eax * 4]
-
-			// j = i - 1
-			mov ebx, eax
-			sub ebx, 1
-
-_loop_2:
-					// if j < 0 exit
-					cmp ebx, 0
-					//jnae _end_loop_2
-					jae _end_loop_2
-
-					// if arr[j] <= key exit
-					cmp [esi + ebx * 4], ecx
-					//jnb _end_loop_2
-					jb _end_loop_2
-
-					// array[j+1] = array[j]
-					push [esi + ebx * 4]
-					pop [esi + ebx * 4 + 4]
-
-					// j--
-					sub ebx, 1
-
-					jmp _loop_2
-_end_loop_2:
-
-				// array[j+1] = key
-				mov [esi + ebx*4 + 4], ecx
-
-				// i++
-				add eax, 1
-
-				// restore items
-				pop ecx
-
-				jmp _loop_1
+		mov eax, [esi - 4]
+		mov ebx, [esi - 8]
+		mov edx, ebx
+		add edx, eax
+		mov [esi], edx
+		add esi, 4
+		sub ecx, 1
 _end_loop_1:
+		cmp ecx, 0
+		ja _loop_1
 
-			pop edi
-			pop esi
-			pop ebx
-			pop ebp
 	}
-
-	return arr_sorted;
 }
 
 int main() {
 	clock_t start, end;
-	unsigned int size = 20;
-	for (unsigned int size = 20; size <= 100; size *= 2) {
-		int* arr = randomArrayNumbers(size);
-
-		printf_s("Random numbers size %d array\n", size);
-		print_arr(arr, size);
-		printf_s("\n");
-
-		// InsertSort C algorithm
-		printf_s("C sorted array size %d with insertion sort algorithm\n", size);
-		int* sortedArrC = new int[size];
-		for (unsigned int i = 0; i < size; i++) {
-			sortedArrC[i] = arr[i];
-		}
+	for(unsigned int i=10; i<1000000000; i*=10) {
+		int size = i;
+		// Fibonnacci Part 1
+		// Fibonacci C algorithm
+		printf_s("C sorted array size %d with fibonacci algorithm\n", size);
+		int* arr_C = new int[size];
 		start = clock();
-		insertionSortC(sortedArrC, size);
+		fibonacci_C(arr_C, size);
 		end = clock();
-		print_arr(sortedArrC, size);
+		// print_arr(arr_C, size);
 		print_time(start, end);
 		printf_s("\n\n");
-		// delete sortedArrC;
 
-		// InsertSort Assembler algorithm
-		printf_s("Assembler sorted array size %d with insertion sort algorithm\n", size);
-		int* sortedArrAssem = new int[size];
-		for (unsigned int i = 0; i < size; i++) {
-			sortedArrAssem[i] = arr[i];
-		}
+		// Fibonacci Assembler algorithm
+		printf_s("Assembler array size %d with fibonacci algorithm\n", size);
+		int* arr_assemb = new int[size];
 		start = clock();
-		int* arr2 = insertionSortAssembler(sortedArrAssem, size);
+		fibonacci_assemb(arr_assemb, size);
 		end = clock();
-		print_arr(arr2, size);
+		// print_arr(arr_assemb, size);
 		print_time(start, end);
+		printf_s("\n\n");
 
-		if (sortedArrC != arr2) {
-			printf("NOT EQUAL");
+		if (!equal_arr(arr_C, arr_assemb, size)) {
+			printf("NOT EQUAL\n");
 			return -1;
 		}
-		printf_s("\n\n");
-		// delete sortedArrAssem;\n;
+
+		delete arr_C;
+		delete arr_assemb;
 		printf_s("-----------------------------------------\n\n");
+	}
+
+	// Fibonnacci Part 2
+	for (unsigned int i = 10; i < 1000000000; i *= 10) {
+		int size = i;
+		// Fibonacci C algorithm
 	}
 }
