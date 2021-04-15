@@ -50,13 +50,7 @@ void create_random_matrix(int** matrix, unsigned int size) {
 	for (unsigned int i = 0; i < (unsigned)size; i++) {
 		matrix[i] = new int[size];
 		for (unsigned int j = 0; j < (unsigned)size; j++) {
-			int* row = matrix[i];
-			__asm {
-				mov esi, row
-				mov eax, j
-				mov ebx, get_random_val
-				mov [esi + eax * 4], ebx
-			}
+			matrix[i][j] = get_random_val();
 		}
 	}
 }
@@ -71,6 +65,58 @@ int* randomArrayNumbers(unsigned int size) {
 	};
 
 	return arr;
+}
+
+
+// --------------------- MATRIX EQUAL ----------------------------------
+// --------------------- COMPROBATION ----------------------------------
+
+bool equal_int_matrix(int** matrix1, int** matrix2, unsigned int size) {
+	for (unsigned int i = 0; i < size; i++) {
+		for (unsigned int j = 0; j < size; j++) {
+			if (matrix1[i][j] != matrix2[i][j]) {
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+bool equal_short_matrix(short** matrix1, short** matrix2, unsigned int size) {
+	for (unsigned int i = 0; i < size; i++) {
+		for (unsigned int j = 0; j < size; j++) {
+			if (matrix1[i][j] != matrix2[i][j]) {
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+bool equal_float_matrix(float** matrix1, float** matrix2, unsigned int size) {
+	for (unsigned int i = 0; i < size; i++) {
+		for (unsigned int j = 0; j < size; j++) {
+			if (matrix1[i][j] != matrix2[i][j]) {
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+bool equal_double_matrix(double** matrix1, double** matrix2, unsigned int size) {
+	for (unsigned int i = 0; i < size; i++) {
+		for (unsigned int j = 0; j < size; j++) {
+			if (matrix1[i][j] != matrix2[i][j]) {
+				return false;
+			}
+		}
+	}
+
+	return true;
 }
 
 // ----------------------- PRINT ---------------------------------------
@@ -151,7 +197,7 @@ void print_timer_mult(bool overvalue) {
 
 	printf_s("Assembler X86 + SSE3 Algorithm:\n");
 	printf_s("FLOAT: %.6f\n\n", (float)timer.SSE3_time / CLOCKS_PER_SEC);
-	printf_s("********************************************************\n");
+	printf_s("********************************************************\n\n");
 }
 
 // 1: INT, 2:SHORT, 3:FLOAT, 4:DOUBLE, 5:FIBONACCI
@@ -202,7 +248,7 @@ void print_individual_timer(bool int_, bool short_, bool float_, bool double_, b
 		printf_s("C: %.6f\n", (float)timer.fibb_C_time / CLOCKS_PER_SEC);
 		printf_s("Assembler X86: %.6f\n", (float)timer.fibb_assem_time / CLOCKS_PER_SEC);
 	}
-	printf_s("********************************************************\n");
+	printf_s("********************************************************\n\n");
 }
 
 void print_time(clock_t start, clock_t end) {
@@ -545,7 +591,7 @@ float mult_sum_float_SSE3(const float* row_matrix, const float* col_matrix, unsi
 // ------------------------ MATRIX MULTIPLICATION BENCHMARKS -----------------------
 
 // I N T
-void int_benchmark(int** arr_matrix, unsigned int size, bool print_arr, const bool overvalue) {
+void int_benchmark(int** arr_matrix, unsigned int size, bool print_arr, const bool overvalue, const bool equal_matrix) {
 	clock_t start, end;
 	int** matrix = new int*[size];
 	int** mult_C = new int*[size];
@@ -614,6 +660,20 @@ void int_benchmark(int** arr_matrix, unsigned int size, bool print_arr, const bo
 		printf_s("\n\n");
 	}
 
+	if (equal_matrix) {
+		if (equal_int_matrix(mult_C, mult_C2, size)) {
+			printf_s("C Multiplication INT matrix EQUAL\n");
+		} else {
+			cerr << "C Multiplication INT matrix NOT EQUAL" << endl;
+		}
+
+		if (equal_int_matrix(mult_C, mult_assem, size)) {
+			printf_s("ASSEM Multiplication INT matrix EQUAL\n");
+		} else {
+			cerr << "ASSEM Multiplication INT matrix NOT EQUAL" << endl;
+		}
+	}
+
 	delete_int_matrix(matrix, size);
 	delete_int_matrix(mult_C, size);
 	delete_int_matrix(mult_C2, size);
@@ -622,7 +682,7 @@ void int_benchmark(int** arr_matrix, unsigned int size, bool print_arr, const bo
 }
 
 // S H O R T
-void short_benchmark(int** standard_matrix, unsigned int size, bool print_arr, const bool overvalue) {
+void short_benchmark(int** standard_matrix, unsigned int size, bool print_arr, const bool overvalue, const bool equal_matrix) {
 	clock_t start, end;
 	short** matrix = new short* [size];
 	short** inverse_matrix = new short* [size];
@@ -679,6 +739,14 @@ void short_benchmark(int** standard_matrix, unsigned int size, bool print_arr, c
 		printf_s("\n\n");
 	}
 
+	if (equal_matrix) {
+		if (equal_short_matrix(mult_matrix, mult_matrix_SSE, size)) {
+			printf_s("Multiplication SHORT matrix EQUAL\n");
+		} else {
+			cerr << "Multiplication SHORT matrix NOT EQUAL" << endl;
+		}
+	}
+
 	delete_short_matrix(matrix, size);
 	delete_short_matrix(inverse_matrix, size);
 	delete_short_matrix(mult_matrix, size);
@@ -686,7 +754,7 @@ void short_benchmark(int** standard_matrix, unsigned int size, bool print_arr, c
 }
 
 // F L O A T
-void float_benchmark(int** standard_matrix, unsigned int size, bool print_arr, const bool overvalue) {
+void float_benchmark(int** standard_matrix, unsigned int size, bool print_arr, const bool overvalue, const bool equal_matrix) {
 	clock_t start, end;
 	float** matrix = new float*[size];
 	float** inverse_matrix = new float*[size];
@@ -758,6 +826,20 @@ void float_benchmark(int** standard_matrix, unsigned int size, bool print_arr, c
 		printf_s("\n\n");
 	}
 
+	if (equal_matrix) {
+		if (equal_float_matrix(mult_matrix, mult_matrix_SSE, size)) {
+			printf_s("Multiplication FLOAT SSE matrix EQUAL\n");
+		} else {
+			cerr << "Multiplication FLOAT SSE matrix NOT EQUAL" << endl;
+		}
+
+		if (equal_float_matrix(mult_matrix, mult_matrix_SSE3, size)) {
+			printf_s("Multiplication FLOAT SSE3 matrix EQUAL\n");
+		} else {
+			cerr << "Multiplication FLOAT SSE3 matrix NOT EQUAL" << endl;
+		}
+	}
+
 	delete_float_matrix(matrix, size);
 	delete_float_matrix(inverse_matrix, size);
 	delete_float_matrix(mult_matrix, size);
@@ -766,7 +848,7 @@ void float_benchmark(int** standard_matrix, unsigned int size, bool print_arr, c
 }
 
 // D O U B L E
-void double_benchmark(int** standard_matrix, unsigned int size, bool print_arr, const bool overvalue) {
+void double_benchmark(int** standard_matrix, unsigned int size, bool print_arr, const bool overvalue, const bool equal_matrix) {
 	clock_t start, end;
 	double** matrix = new double*[size];
 	double** inverse_matrix = new double*[size];
@@ -823,6 +905,14 @@ void double_benchmark(int** standard_matrix, unsigned int size, bool print_arr, 
 		printf_s("\n\n");
 	}
 
+	if (equal_matrix) {
+		if (equal_double_matrix(mult_matrix, mult_matrix_SSE, size)) {
+			printf_s("Multiplication DOUBLE SSE matrix EQUAL\n");
+		} else {
+			cerr << "Multiplication DOUBLE SSE matrix NOT EQUAL" << endl;
+		}
+	}
+
 	delete_double_matrix(matrix, size);
 	delete_double_matrix(inverse_matrix, size);
 	delete_double_matrix(mult_matrix_SSE, size);
@@ -871,7 +961,7 @@ void fibonacci_benchmark() {
 	}
 }
 
-void print_options(int& option, char& print) {
+void print_options(int& option, char& print, char& equal) {
 	printf_s("Welcome, Options:\n\n");
 	printf_s("1. INT Matrix multiplication benchmark\n");
 	printf_s("2. SHORT Matrix multiplication benchmark\n");
@@ -884,15 +974,18 @@ void print_options(int& option, char& print) {
 	cin.ignore();
 	printf_s("Print matrix: (y/n) default no:\n");
 	print = getchar();
+	printf_s("Equal matrix comprobation: (y/n) default no:\n");
+	equal = getchar();
 	printf_s("\n");
 }
 
 int main() {
-	bool print_arr = false;
+	bool print_arr = false, equal_matrix = true;
 	int option;
-	char print;
-	print_options(option, print);
+	char print, equal;
+	print_options(option, print, equal);
 	if (print == 'y') print_arr = true;
+	if (equal == 'y') equal_matrix = true;
 
 
 	if(option != 5) {
@@ -915,10 +1008,10 @@ int main() {
 			timer.random_matrix_creation = end - start;
 
 			printf_s("Matrix size: %d\n", max_size);
-			if(option == 1 || option == 6) int_benchmark(arr_matrix, max_size, print_arr, overvalue);
-			if(option == 2 || option == 6) short_benchmark(arr_matrix, max_size, print_arr, overvalue);
-			if(option == 3 || option == 6) double_benchmark(arr_matrix, max_size, print_arr, overvalue);
-			if(option == 4 || option == 6) float_benchmark(arr_matrix, max_size, print_arr, overvalue);
+			if(option == 1 || option == 6) int_benchmark(arr_matrix, max_size, print_arr, overvalue, equal_matrix);
+			if(option == 2 || option == 6) short_benchmark(arr_matrix, max_size, print_arr, overvalue, equal_matrix);
+			if(option == 3 || option == 6) double_benchmark(arr_matrix, max_size, print_arr, overvalue, equal_matrix);
+			if(option == 4 || option == 6) float_benchmark(arr_matrix, max_size, print_arr, overvalue, equal_matrix);
 
 			if(option == 6) print_timer_mult(overvalue);
 			if (option == 1) print_individual_timer(true, false, false, false, false, overvalue);
@@ -928,8 +1021,7 @@ int main() {
 
 			delete_int_matrix(arr_matrix, i);
 		}
-	}
-	else {
+	} else {
 		fibonacci_benchmark();
 	}
 }
