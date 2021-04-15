@@ -204,8 +204,8 @@ void print_timer_mult(bool overvalue) {
 void print_individual_timer(bool int_, bool short_, bool float_, bool double_, bool fibb_, bool overvalue) {
 	printf_s("********************************************************\n");
 	if (int_ || short_ || float_ || double_) {
-		printf_s("Matrix multiplication ejecution time:\n\n");
-		printf_s("Matrix random values creation time\n");
+		printf_s("Matrix multiplication ejecution time ------------>\n\n");
+		printf_s("Matrix random values creation time:\n");
 		printf_s("INT: %.6f\n", (float)timer.random_matrix_creation / CLOCKS_PER_SEC);
 	}
 
@@ -426,6 +426,7 @@ _end_loop_1:
 // ----------------------- MULTIPLICATION ------------------------------------------
 // -----------------------      INT       ------------------------------------------
 
+// Regular C row-col multiplication
 int mult_sum_int(const int* row, const int* col, unsigned int size) {
 	int res = 0;
 	for (unsigned int i = 0; i < size; i++) {
@@ -439,6 +440,7 @@ int mult_sum_int(const int* row, const int* col, unsigned int size) {
 // ----------------------- MULTIPLICATION ------------------------------------------
 // -----------------------    DOUBLE     -------------------------------------------
 
+// Regular C row-col multiplication
 double mult_sum_double(const double* row, const double* col, unsigned int size) {
 	double res = 0.0;
 	for (unsigned int i = 0; i < size; i++) {
@@ -448,23 +450,29 @@ double mult_sum_double(const double* row, const double* col, unsigned int size) 
 	return res;
 }
 
+// SSE row-col multiplication
 double mult_sum_double_SSE(const double *row_matrix, const double *col_matrix,unsigned int size) {
 	double val = 0.0, res = 0.0;
-	__declspec(align(16)) double tmp[2] = { 0.0, 0.0 };
+	__declspec(align(16)) double tmp[2] = { 0.0, 0.0 }; // 2 Temporary values
 	__m128d mres;
 
 	if ((size / 2) != 0) {
+		// Pointer to val
 		mres = _mm_load_sd(&val);
 		for (unsigned int i = 0; i < size / 2; i++) {
+			// Multiplicate each 2 values and sum to mres
 			mres = _mm_add_pd(mres, _mm_mul_pd(_mm_loadu_pd(&row_matrix[2 * i]), _mm_loadu_pd(&col_matrix[2 * i])));
 		}
 
+		// Store memory result to temporary upper and low value
 		_mm_store_pd(tmp, mres);
 
+		// Sum upper and low value
 		res = tmp[0] + tmp[1];
 	}
 
 	if ((size % 2) != 0) {
+		// Rest of none 2 multiple value regular C command
 		for (unsigned int i = size - size % 2; i < size; i++) {
 			res += row_matrix[i] * col_matrix[i];
 		}
@@ -477,6 +485,7 @@ double mult_sum_double_SSE(const double *row_matrix, const double *col_matrix,un
 // ----------------------- MULTIPLICATION ------------------------------------------
 // -----------------------     SHORT      -------------------------------------------
 
+// Regular C row-col multiplication
 short mult_sum_short(short* row, short* col, int size) {
 	short sum = 0;
 	for (unsigned int i = 0; i < (unsigned)size; i++) {
@@ -486,19 +495,27 @@ short mult_sum_short(short* row, short* col, int size) {
 	return sum;
 }
 
+// SSE2 row-col multiplication
 short mult_sum_short_SSE2(const short* row, const short* col, int size) {
+	// Pointers to row and col
 	__m128i* mem_pointer_row = (__m128i*)row;
 	__m128i* mem_pointer_col = (__m128i*)col;
+	// 8 short value res
 	__m128i mem_res = _mm_set_epi16(0, 0, 0, 0, 0, 0, 0, 0);
 
 	for (unsigned int i = 0; i < (unsigned)size / 8; i++) {
+		// Row and Col 8 values multiplication
 		__m128i mem_tmp = _mm_mullo_epi16(_mm_loadu_si128(mem_pointer_row), 
 			_mm_loadu_si128(mem_pointer_col));
+		// Sum to res
 		mem_res = _mm_add_epi16(mem_res, mem_tmp);
+
+		// Next values
 		mem_pointer_row++;
 		mem_pointer_col++;
 	}
 
+	// Store values to tot
 	short res[8];
 	__m128i* pointer_mem_res = (__m128i*)res;
 	_mm_storeu_si128(pointer_mem_res, mem_res);
@@ -534,8 +551,8 @@ float mult_sum_float_SSE(const float* row_matrix, const float* col_matrix, unsig
 			mres = _mm_add_ps(mres, _mm_mul_ps(_mm_loadu_ps(&row_matrix[4 * i]), _mm_loadu_ps(&col_matrix[4 * i])));
 		}
 
-		__m128 mv1 = _mm_movelh_ps(mres, mres); // a, b, a, b
-		__m128 mv2 = _mm_movehl_ps(mres, mres); // c, d, c, d
+		__m128 mv1 = _mm_movelh_ps(mres, mres); // a, b
+		__m128 mv2 = _mm_movehl_ps(mres, mres); // c, d
 		mres = _mm_add_ps(mv1, mv2);
 
 		_mm_store_ps(tmp, mres);
@@ -556,15 +573,18 @@ float mult_sum_float_SSE(const float* row_matrix, const float* col_matrix, unsig
 float mult_sum_float_SSE3(const float* row_matrix, const float* col_matrix, unsigned int size) {
 	float val = 0.0f, res = 0.0f;
 
+	// Not inferior to 4 matrix
 	if ((size / 4) != 0) {
 		const float* pointer_row = row_matrix;
 		const float* pointer_col = col_matrix;
 
+		// Value pointer to xmm0
 		__asm {
 			movss xmm0, xmmword ptr[val];
 		}
 
 		for (unsigned int i = 0; i < size / 4; i++) {
+			// val = row * col
 			__asm {
 				mov eax, dword ptr[pointer_row]
 				mov ebx, dword ptr[pointer_col]
@@ -574,9 +594,12 @@ float mult_sum_float_SSE3(const float* row_matrix, const float* col_matrix, unsi
 				addps xmm0, xmm1
 			}
 
+			// Pointer to next 4 values
 			pointer_row += 4;
 			pointer_col += 4;
 		}
+
+		// Save val to res
 		__asm {
 			haddps xmm0, xmm0
 			haddps xmm0, xmm0
@@ -622,14 +645,14 @@ void int_benchmark(int** arr_matrix, unsigned int size, bool print_arr, const bo
 	}
 
 	if (!overvalue) {
-		// Pure C matrix multiplication algorithm
+		// Pure int C matrix multiplication algorithm
 		start = clock();
 		mult_matrix_C(matrix, mult_C, size);
 		end = clock();
 		timer.pure_C_time = end - start;
 
 		start = clock();
-		// Row-Col C multiplication
+		// Row-Col C matrix multiplication
 		for (unsigned int i = 0; i < (unsigned)size; i++) {
 			for (unsigned int j = 0; j < (unsigned)size; j++) {
 				int* row = matrix[i];
@@ -682,13 +705,14 @@ void int_benchmark(int** arr_matrix, unsigned int size, bool print_arr, const bo
 }
 
 // S H O R T
-void short_benchmark(int** standard_matrix, unsigned int size, bool print_arr, const bool overvalue, const bool equal_matrix) {
+void short_benchmark(int** standard_matrix, unsigned int size, bool print_matrix, const bool overvalue, const bool equal_matrix) {
 	clock_t start, end;
 	short** matrix = new short* [size];
 	short** inverse_matrix = new short* [size];
 	short** mult_matrix = new short* [size];
 	short** mult_matrix_SSE = new short* [size];
 
+	// INIT SHORT MATRIX VALUES
 	for (unsigned int i = 0; i < size; i++) {
 		matrix[i] = new short[size];
 		inverse_matrix[i] = new short[size];
@@ -705,7 +729,7 @@ void short_benchmark(int** standard_matrix, unsigned int size, bool print_arr, c
 	short* row, *col; 
 	if (!overvalue) {
 		start = clock();
-		// Simple C short calculation
+		// C short ROW-COL multiplication
 		for (unsigned int i = 0; i < size; i++) {
 			for (unsigned int j = 0; j < size; j++) {
 				row = matrix[i];
@@ -717,7 +741,7 @@ void short_benchmark(int** standard_matrix, unsigned int size, bool print_arr, c
 		timer.C_row_col_time[1] = end - start;
 	}
 
-	// SSE2 short calculation
+	// SSE2 short ROW-COL optimised multiplication 
 	start = clock();
 	for (unsigned int i = 0; i < size; i++) {
 		for (unsigned int j = 0; j < size; j++) {
@@ -729,7 +753,7 @@ void short_benchmark(int** standard_matrix, unsigned int size, bool print_arr, c
 	end = clock();
 	timer.SSE2_time = end - start;
 
-	if (print_arr) {
+	if (print_matrix) {
 		printf_s("SHORT\n\n");
 		print_short_matrix(matrix, size);
 		printf_s("\n\n");
@@ -754,7 +778,7 @@ void short_benchmark(int** standard_matrix, unsigned int size, bool print_arr, c
 }
 
 // F L O A T
-void float_benchmark(int** standard_matrix, unsigned int size, bool print_arr, const bool overvalue, const bool equal_matrix) {
+void float_benchmark(int** standard_matrix, unsigned int size, bool print_matrix, const bool overvalue, const bool equal_matrix) {
 	clock_t start, end;
 	float** matrix = new float*[size];
 	float** inverse_matrix = new float*[size];
@@ -762,6 +786,7 @@ void float_benchmark(int** standard_matrix, unsigned int size, bool print_arr, c
 	float** mult_matrix_SSE = new float* [size];
 	float** mult_matrix_SSE3 = new float* [size];
 
+	// INIT FLOAT MATRIX VALUES
 	for (unsigned int i = 0; i < size; i++) {
 		matrix[i] = new float[size];
 		inverse_matrix[i] = new float[size];
@@ -778,9 +803,9 @@ void float_benchmark(int** standard_matrix, unsigned int size, bool print_arr, c
 	}
 
 	float* col, * row;
-	// C matrix multiplication
 	if (!overvalue) {
 		start = clock();
+		// C float ROW-COL multiplication
 		for (unsigned int i = 0; i < size; i++) {
 			for (unsigned int j = 0; j < size; j++) {
 				row = matrix[i];
@@ -793,6 +818,7 @@ void float_benchmark(int** standard_matrix, unsigned int size, bool print_arr, c
 	}
 
 	start = clock();
+	// SSE float optimized ROW-COL multiplication
 	for (unsigned int i = 0; i < size; i++) {
 		for (unsigned int j = 0; j < size; j++) {
 			row = matrix[i];
@@ -804,6 +830,7 @@ void float_benchmark(int** standard_matrix, unsigned int size, bool print_arr, c
 	timer.SSE_time[0] = end - start;
 
 	start = clock();
+	// SSE3 float optimized ROW-COL multiplication
 	for (unsigned int i = 0; i < size; i++) { 
 		for (unsigned int j = 0; j < size; j++) {
 			row = matrix[i];
@@ -814,7 +841,8 @@ void float_benchmark(int** standard_matrix, unsigned int size, bool print_arr, c
 	end = clock();
 	timer.SSE3_time = end - start;
 
-	if (print_arr) {
+	// MATRIX PRINT
+	if (print_matrix) {
 		printf_s("FLOAT\n\n");
 		print_float_matrix(matrix, size);
 		printf_s("\n\n");
@@ -848,13 +876,14 @@ void float_benchmark(int** standard_matrix, unsigned int size, bool print_arr, c
 }
 
 // D O U B L E
-void double_benchmark(int** standard_matrix, unsigned int size, bool print_arr, const bool overvalue, const bool equal_matrix) {
+void double_benchmark(int** standard_matrix, unsigned int size, bool print_matrix, const bool overvalue, const bool equal_matrix) {
 	clock_t start, end;
 	double** matrix = new double*[size];
 	double** inverse_matrix = new double*[size];
 	double** mult_matrix = new double* [size];
 	double** mult_matrix_SSE = new double* [size];
 
+	// INIT DOUBLE MATRIX VALUES
 	for (unsigned int i = 0; i < size; i++) {
 		matrix[i] = new double[size];
 		inverse_matrix[i] = new double[size];
@@ -871,7 +900,7 @@ void double_benchmark(int** standard_matrix, unsigned int size, bool print_arr, 
 	double* row, *col; 
 	if (!overvalue) {
 		start = clock();
-		// Simple C calculation
+		// C ROW-COL calculation
 		for (unsigned int i = 0; i < size; i++) {
 			for (unsigned int j = 0; j < size; j++) {
 				row = matrix[i];
@@ -895,7 +924,7 @@ void double_benchmark(int** standard_matrix, unsigned int size, bool print_arr, 
 	end = clock();
 	timer.SSE_time[1] = end - start;
 
-	if (print_arr) {
+	if (print_matrix) {
 		printf_s("DOUBLE\n\n");
 		print_double_matrix(matrix, size);
 		printf_s("\n\n");
@@ -925,6 +954,8 @@ void double_benchmark(int** standard_matrix, unsigned int size, bool print_arr, 
 void fibonacci_benchmark() {
 	clock_t start, end;
 	int size = (int)pow(10, 9);
+
+	// 10 elevated i escalation
 	for (unsigned int i = 10; i < pow(10,9); i *= 10) {
 		int size = i;
 
@@ -961,6 +992,8 @@ void fibonacci_benchmark() {
 	}
 }
 
+// ---------------------------------------------------------------------------------
+// --------------------------------- OPTIONS ---------------------------------------
 void print_options(int& option, char& print, char& equal) {
 	printf_s("Welcome, Options:\n\n");
 	printf_s("1. INT Matrix multiplication benchmark\n");
@@ -975,44 +1008,50 @@ void print_options(int& option, char& print, char& equal) {
 	printf_s("Print matrix: (y/n) default no:\n");
 	print = getchar();
 	printf_s("Equal matrix comprobation: (y/n) default no:\n");
+	cin.ignore();
 	equal = getchar();
 	printf_s("\n");
 }
 
 int main() {
-	bool print_arr = false, equal_matrix = true;
+	bool print_matrix = false, equal_matrix = false;
 	int option;
 	char print, equal;
 	print_options(option, print, equal);
-	if (print == 'y') print_arr = true;
-	if (equal == 'y') equal_matrix = true;
+	if (print == 'y') print_matrix = true; // Print matrix of specified benchmarks
+	if (equal == 'y') equal_matrix = true; // Equal comprobation of specified benchmarks
 
 
 	if(option != 5) {
-		printf_s("Choose matrix max size multiple of 8 (max_size = size*8) (max: 4):\n");
+		printf_s("Choose matrix max size multiple of 8 (max_size = size*8) (max: 6, min: 2):\n");
 		int size;
 		cin >> size;
 		cin.ignore();
-		if (size > 6 || size < 0) size = 4;
+		if (size > 6 || size < 2) size = 6;
 		clock_t start, end;
 		bool overvalue = false;
-		for (unsigned int i = 1; i < (unsigned)size; i++) {
-			unsigned int max_size = pow(8, i);
+		for (unsigned int i = 2; i < (unsigned)size; i++) {
+			// Elevate 4^i for matrix size (4^i, 4^i)
+			unsigned int max_size = pow(4, i); // min 4^2 because of (8, 8) val algorithm
 			int** arr_matrix = new int* [max_size];
-			overvalue = i > 4;
+			
+			// Don't run C algorithms in 5th iteration for faster execution
+			overvalue = i > 4; 
 
 			srand((unsigned)time(NULL));
 			start = clock();
-			create_random_matrix(arr_matrix, max_size);
+			create_random_matrix(arr_matrix, max_size); // Random base matrix creation
 			end = clock();
 			timer.random_matrix_creation = end - start;
 
+			// Benchmarks
 			printf_s("Matrix size: %d\n", max_size);
-			if(option == 1 || option == 6) int_benchmark(arr_matrix, max_size, print_arr, overvalue, equal_matrix);
-			if(option == 2 || option == 6) short_benchmark(arr_matrix, max_size, print_arr, overvalue, equal_matrix);
-			if(option == 3 || option == 6) double_benchmark(arr_matrix, max_size, print_arr, overvalue, equal_matrix);
-			if(option == 4 || option == 6) float_benchmark(arr_matrix, max_size, print_arr, overvalue, equal_matrix);
+			if(option == 1 || option == 6) int_benchmark(arr_matrix, max_size, print_matrix, overvalue, equal_matrix);
+			if(option == 2 || option == 6) short_benchmark(arr_matrix, max_size, print_matrix, overvalue, equal_matrix);
+			if(option == 3 || option == 6) double_benchmark(arr_matrix, max_size, print_matrix, overvalue, equal_matrix);
+			if(option == 4 || option == 6) float_benchmark(arr_matrix, max_size, print_matrix, overvalue, equal_matrix);
 
+			// Print functions
 			if(option == 6) print_timer_mult(overvalue);
 			if (option == 1) print_individual_timer(true, false, false, false, false, overvalue);
 			if (option == 2) print_individual_timer(false, true, false, false, false, overvalue);
@@ -1022,6 +1061,7 @@ int main() {
 			delete_int_matrix(arr_matrix, i);
 		}
 	} else {
+		// Case 5th option choosed it will run only fibonacci benchmark (no SSE[2-3])
 		fibonacci_benchmark();
 	}
 }
