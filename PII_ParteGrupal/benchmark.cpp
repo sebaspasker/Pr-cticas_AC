@@ -1,6 +1,8 @@
 #include <stdlib.h>
+#include <iostream>
 #include <malloc.h>
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
 #include <windows.h>
 #include <synchapi.h>
@@ -14,6 +16,7 @@ using namespace std;
 
 // int, short, double, float order
 struct timer_struct {
+	clock_t random_matrix_creation;
 	clock_t pure_C_time;
 	clock_t pure_assem_time;
 	clock_t C_row_col_time[4];
@@ -39,11 +42,21 @@ bool equal_arr(int* arr1, int* arr2, unsigned int arr_size) {
 	return true;
 }
 
+int get_random_val() {
+	return (int)rand() % 10 + 1;
+}
+
 void create_random_matrix(int** matrix, unsigned int size) {
 	for (unsigned int i = 0; i < (unsigned)size; i++) {
 		matrix[i] = new int[size];
 		for (unsigned int j = 0; j < (unsigned)size; j++) {
-			matrix[i][j] = (int) (rand() % 10 + 1);
+			int* row = matrix[i];
+			__asm {
+				mov esi, row
+				mov eax, j
+				mov ebx, get_random_val
+				mov [esi + eax * 4], ebx
+			}
 		}
 	}
 }
@@ -109,17 +122,22 @@ void print_float_matrix(float** matrix, int size) {
 	}
 }
 
-void print_timer_mult() {
+void print_timer_mult(bool overvalue) {
 	printf_s("********************************************************\n");
 	printf_s("Matrix multiplication ejecution time:\n\n");
-	printf_s("Pure C Algoritm:\n");
-	printf_s("INT: %.6f\n\n", (float)timer.pure_C_time / CLOCKS_PER_SEC);
+	printf_s("Matrix random values creation time\n");
+	printf_s("INT: %.6f\n\n", (float)timer.random_matrix_creation / CLOCKS_PER_SEC);
 
-	printf_s("ROW-COL C Algorithm (without inverse matrix calcul)");
-	printf_s("INT: %.6f\n", (float)timer.C_row_col_time[0] / CLOCKS_PER_SEC);
-	printf_s("SHORT: %.6f\n", (float)timer.C_row_col_time[1] / CLOCKS_PER_SEC);
-	printf_s("FLOAT: %.6f\n", (float)timer.C_row_col_time[2] / CLOCKS_PER_SEC);
-	printf_s("DOUBLE: %.6f\n\n", (float)timer.C_row_col_time[3] / CLOCKS_PER_SEC);
+	if (!overvalue) {
+		printf_s("Pure C Algoritm:\n");
+		printf_s("INT: %.6f\n\n", (float)timer.pure_C_time / CLOCKS_PER_SEC);
+
+		printf_s("ROW-COL C Algorithm (without inverse matrix calcul)\n");
+		printf_s("INT: %.6f\n", (float)timer.C_row_col_time[0] / CLOCKS_PER_SEC);
+		printf_s("SHORT: %.6f\n", (float)timer.C_row_col_time[1] / CLOCKS_PER_SEC);
+		printf_s("FLOAT: %.6f\n", (float)timer.C_row_col_time[2] / CLOCKS_PER_SEC);
+		printf_s("DOUBLE: %.6f\n\n", (float)timer.C_row_col_time[3] / CLOCKS_PER_SEC);
+	}
 
 	printf_s("Pure Assembler X86 Algorithm:\n");
 	printf_s("INT: %.6f\n\n", (float)timer.pure_assem_time / CLOCKS_PER_SEC);
@@ -137,22 +155,28 @@ void print_timer_mult() {
 }
 
 // 1: INT, 2:SHORT, 3:FLOAT, 4:DOUBLE, 5:FIBONACCI
-void print_individual_timer(bool int_, bool short_, bool float_, bool double_, bool fibb_) {
+void print_individual_timer(bool int_, bool short_, bool float_, bool double_, bool fibb_, bool overvalue) {
 	printf_s("********************************************************\n");
-	if (int_ || short_ || float_ || double_) printf_s("Matrix multiplication ejecution time:\n\n");
-
-	if (int_) {
-		printf_s("ROW-COL C Algorithm (without inverse matrix calcul)");
-		printf_s("INT: %.6f\n", (float)timer.C_row_col_time[0] / CLOCKS_PER_SEC);
-	}
-
 	if (int_ || short_ || float_ || double_) {
-		printf_s("ROW-COL C Algorithm (without inverse matrix calcul)");
+		printf_s("Matrix multiplication ejecution time:\n\n");
+		printf_s("Matrix random values creation time\n");
+		printf_s("INT: %.6f\n", (float)timer.random_matrix_creation / CLOCKS_PER_SEC);
 	}
-	if(int_) printf_s("INT: %.6f\n", (float)timer.C_row_col_time[0] / CLOCKS_PER_SEC);
-	if(short_) printf_s("SHORT: %.6f\n", (float)timer.C_row_col_time[1] / CLOCKS_PER_SEC);
-	if(float_) printf_s("FLOAT: %.6f\n", (float)timer.C_row_col_time[2] / CLOCKS_PER_SEC);
-	if(double_) printf_s("DOUBLE: %.6f\n", (float)timer.C_row_col_time[3] / CLOCKS_PER_SEC);
+
+	if(!overvalue) {
+		if (int_) {
+			printf_s("Pure C algorithm\n");
+			printf_s("INT: %.6f\n", (float)timer.pure_C_time / CLOCKS_PER_SEC);
+		}
+
+		if (int_ || short_ || float_ || double_) {
+			printf_s("ROW-COL C Algorithm (without inverse matrix calcul)\n");
+		}
+		if(int_) printf_s("INT: %.6f\n", (float)timer.C_row_col_time[0] / CLOCKS_PER_SEC);
+		if(short_) printf_s("SHORT: %.6f\n", (float)timer.C_row_col_time[1] / CLOCKS_PER_SEC);
+		if(float_) printf_s("FLOAT: %.6f\n", (float)timer.C_row_col_time[2] / CLOCKS_PER_SEC);
+		if(double_) printf_s("DOUBLE: %.6f\n", (float)timer.C_row_col_time[3] / CLOCKS_PER_SEC);
+	}
 
 	if (int_) {
 		printf_s("Pure Assembler X86 Algorithm:\n");
@@ -175,8 +199,8 @@ void print_individual_timer(bool int_, bool short_, bool float_, bool double_, b
 
 	if (fibb_) {
 		printf_s("Fibonacci ejecution time:\n");
-		printf_s("C: %.6f", timer.fibb_C_time / CLOCKS_PER_SEC);
-		printf_s("Assembler X86: %.6f", timer.fibb_assem_time / CLOCKS_PER_SEC);
+		printf_s("C: %.6f\n", (float)timer.fibb_C_time / CLOCKS_PER_SEC);
+		printf_s("Assembler X86: %.6f\n", (float)timer.fibb_assem_time / CLOCKS_PER_SEC);
 	}
 	printf_s("********************************************************\n");
 }
@@ -233,7 +257,6 @@ void fibonacci_assemb(int* arr, unsigned int n) {
 	__asm {
 		pusha // save state
 
-begin:
 		mov esi, sorted_arr // empty arr
 		mov eax, 0 // first number
 		mov ebx, 1 // second number
@@ -267,7 +290,6 @@ _end_loop_1:
 		cmp ecx, 0
 			ja _loop_1
 
-_end:
 		popa
 	}
 }
@@ -523,7 +545,7 @@ float mult_sum_float_SSE3(const float* row_matrix, const float* col_matrix, unsi
 // ------------------------ MATRIX MULTIPLICATION BENCHMARKS -----------------------
 
 // I N T
-void int_benchmark(int** arr_matrix, unsigned int size, bool print_arr) {
+void int_benchmark(int** arr_matrix, unsigned int size, bool print_arr, const bool overvalue) {
 	clock_t start, end;
 	int** matrix = new int*[size];
 	int** mult_C = new int*[size];
@@ -553,23 +575,25 @@ void int_benchmark(int** arr_matrix, unsigned int size, bool print_arr) {
 		}
 	}
 
-	// Pure C matrix multiplication algorithm
-	start = clock();
-	mult_matrix_C(matrix, mult_C, size);
-	end = clock();
-	timer.pure_C_time = end - start;
+	if (!overvalue) {
+		// Pure C matrix multiplication algorithm
+		start = clock();
+		mult_matrix_C(matrix, mult_C, size);
+		end = clock();
+		timer.pure_C_time = end - start;
 
-	start = clock();
-	// Row-Col C multiplication
-	for (unsigned int i = 0; i < (unsigned)size; i++) {
-		for (unsigned int j = 0; j < (unsigned)size; j++) {
-			int* row = matrix[i];
-			int* col = matrix_inverse[j];
-			mult_C2[i][j] = mult_sum_int(row, col, size);
+		start = clock();
+		// Row-Col C multiplication
+		for (unsigned int i = 0; i < (unsigned)size; i++) {
+			for (unsigned int j = 0; j < (unsigned)size; j++) {
+				int* row = matrix[i];
+				int* col = matrix_inverse[j];
+				mult_C2[i][j] = mult_sum_int(row, col, size);
+			}
 		}
+		end = clock();
+		timer.C_row_col_time[0] = end - start;
 	}
-	end = clock();
-	timer.C_row_col_time[0] = end - start;
 
 	start = clock();
 	// Assembler X86 matrix multiplication
@@ -598,7 +622,7 @@ void int_benchmark(int** arr_matrix, unsigned int size, bool print_arr) {
 }
 
 // S H O R T
-void short_benchmark(int** standard_matrix, unsigned int size, bool print_arr) {
+void short_benchmark(int** standard_matrix, unsigned int size, bool print_arr, const bool overvalue) {
 	clock_t start, end;
 	short** matrix = new short* [size];
 	short** inverse_matrix = new short* [size];
@@ -619,17 +643,19 @@ void short_benchmark(int** standard_matrix, unsigned int size, bool print_arr) {
 	}
 	
 	short* row, *col; 
-	start = clock();
-	// Simple C short calculation
-	for (unsigned int i = 0; i < size; i++) {
-		for (unsigned int j = 0; j < size; j++) {
-			row = matrix[i];
-			col = inverse_matrix[j];
-			mult_matrix[i][j] = mult_sum_short(row, col, size);
+	if (!overvalue) {
+		start = clock();
+		// Simple C short calculation
+		for (unsigned int i = 0; i < size; i++) {
+			for (unsigned int j = 0; j < size; j++) {
+				row = matrix[i];
+				col = inverse_matrix[j];
+				mult_matrix[i][j] = mult_sum_short(row, col, size);
+			}
 		}
+		end = clock();
+		timer.C_row_col_time[1] = end - start;
 	}
-	end = clock();
-	timer.C_row_col_time[1] = end - start;
 
 	// SSE2 short calculation
 	start = clock();
@@ -660,8 +686,8 @@ void short_benchmark(int** standard_matrix, unsigned int size, bool print_arr) {
 }
 
 // F L O A T
-void float_benchmark(int** standard_matrix, unsigned int size, bool print_arr) {
-	time_t start, end;
+void float_benchmark(int** standard_matrix, unsigned int size, bool print_arr, const bool overvalue) {
+	clock_t start, end;
 	float** matrix = new float*[size];
 	float** inverse_matrix = new float*[size];
 	float** mult_matrix = new float* [size];
@@ -685,16 +711,18 @@ void float_benchmark(int** standard_matrix, unsigned int size, bool print_arr) {
 
 	float* col, * row;
 	// C matrix multiplication
-	start = clock();
-	for (unsigned int i = 0; i < size; i++) {
-		for (unsigned int j = 0; j < size; j++) {
-			row = matrix[i];
-			col = inverse_matrix[j];
-			mult_matrix[i][j] = mult_sum_float(row, col, size);
+	if (!overvalue) {
+		start = clock();
+		for (unsigned int i = 0; i < size; i++) {
+			for (unsigned int j = 0; j < size; j++) {
+				row = matrix[i];
+				col = inverse_matrix[j];
+				mult_matrix[i][j] = mult_sum_float(row, col, size);
+			}
 		}
+		end = clock();
+		timer.C_row_col_time[2] = end - start;
 	}
-	end = clock();
-	timer.C_row_col_time[2] = end - start;
 
 	start = clock();
 	for (unsigned int i = 0; i < size; i++) {
@@ -738,8 +766,8 @@ void float_benchmark(int** standard_matrix, unsigned int size, bool print_arr) {
 }
 
 // D O U B L E
-void double_benchmark(int** standard_matrix, unsigned int size, bool print_arr) {
-	time_t start, end;
+void double_benchmark(int** standard_matrix, unsigned int size, bool print_arr, const bool overvalue) {
+	clock_t start, end;
 	double** matrix = new double*[size];
 	double** inverse_matrix = new double*[size];
 	double** mult_matrix = new double* [size];
@@ -759,17 +787,19 @@ void double_benchmark(int** standard_matrix, unsigned int size, bool print_arr) 
 	}
 	
 	double* row, *col; 
-	start = clock();
-	// Simple C calculation
-	for (unsigned int i = 0; i < size; i++) {
-		for (unsigned int j = 0; j < size; j++) {
-			row = matrix[i];
-			col = inverse_matrix[j];
-			mult_matrix[i][j] = mult_sum_double(row, col, size);
+	if (!overvalue) {
+		start = clock();
+		// Simple C calculation
+		for (unsigned int i = 0; i < size; i++) {
+			for (unsigned int j = 0; j < size; j++) {
+				row = matrix[i];
+				col = inverse_matrix[j];
+				mult_matrix[i][j] = mult_sum_double(row, col, size);
+			}
 		}
+		end = clock();
+		timer.C_row_col_time[3] = end - start;
 	}
-	end = clock();
-	timer.C_row_col_time[3] = end - start;
 
 	start = clock();
 	// SSE double optimized calculation
@@ -815,7 +845,6 @@ void fibonacci_benchmark() {
 		start = clock();
 		fibonacci_C(arr_C, size);
 		end = clock();
-		// print_arr(arr_C, size);
 		print_time(start, end);
 		printf_s("\n\n");
 		timer.fibb_C_time = end - start;
@@ -827,7 +856,6 @@ void fibonacci_benchmark() {
 		start = clock();
 		fibonacci_assemb(arr_assemb, size);
 		end = clock();
-		// print_arr(arr_assemb, size);
 		print_time(start, end);
 		printf_s("\n\n");
 		timer.fibb_assem_time = end - start;
@@ -851,11 +879,12 @@ void print_options(int& option, char& print) {
 	printf_s("4. DOUBLE Matrix multiplication benchmark\n");
 	printf_s("5. Fibbonaci benchmark\n");
 	printf_s("6. All Matrix multiplication benchmark (default)\n");
-	printf_s("\n\n");
-	// TODO scanf_s("%d", option);
+	printf_s("\n");
+	cin >> option;
+	cin.ignore();
 	printf_s("Print matrix: (y/n) default no:\n");
 	print = getchar();
-	printf_s("\n\n");
+	printf_s("\n");
 }
 
 int main() {
@@ -867,31 +896,40 @@ int main() {
 
 
 	if(option != 5) {
-		/*
-		printf_s("Choose matrix max size multiple of 8 (max_size = size*8):\n");
-		int size = 128;
-		int** arr_matrix = new int* [size];
+		printf_s("Choose matrix max size multiple of 8 (max_size = size*8) (max: 4):\n");
+		int size;
+		cin >> size;
+		cin.ignore();
+		if (size > 6 || size < 0) size = 4;
+		clock_t start, end;
+		bool overvalue = false;
+		for (unsigned int i = 1; i < (unsigned)size; i++) {
+			unsigned int max_size = pow(8, i);
+			int** arr_matrix = new int* [max_size];
+			overvalue = i > 4;
 
-		srand((unsigned) time(NULL));
-		create_random_matrix(arr_matrix, size);
+			srand((unsigned)time(NULL));
+			start = clock();
+			create_random_matrix(arr_matrix, max_size);
+			end = clock();
+			timer.random_matrix_creation = end - start;
 
-		int_benchmark(arr_matrix, size, print_arr);
-		short_benchmark(arr_matrix, size, print_arr);
-		double_benchmark(arr_matrix, size, print_arr);
-		float_benchmark(arr_matrix, size);
-		print_timer_mult();
-		*/
-		printf_s("IN");
+			printf_s("Matrix size: %d\n", max_size);
+			if(option == 1 || option == 6) int_benchmark(arr_matrix, max_size, print_arr, overvalue);
+			if(option == 2 || option == 6) short_benchmark(arr_matrix, max_size, print_arr, overvalue);
+			if(option == 3 || option == 6) double_benchmark(arr_matrix, max_size, print_arr, overvalue);
+			if(option == 4 || option == 6) float_benchmark(arr_matrix, max_size, print_arr, overvalue);
+
+			if(option == 6) print_timer_mult(overvalue);
+			if (option == 1) print_individual_timer(true, false, false, false, false, overvalue);
+			if (option == 2) print_individual_timer(false, true, false, false, false, overvalue);
+			if (option == 3) print_individual_timer(false, false, true, false, false, overvalue);
+			if (option == 4) print_individual_timer(false, false, false, true, false, overvalue);
+
+			delete_int_matrix(arr_matrix, i);
+		}
 	}
 	else {
-		printf_s("OUT");
-		//fibonacci_benchmark();
+		fibonacci_benchmark();
 	}
-	/*
-	printf_s("Option:\n1. Assembler X86 simple instructions\n2. Assembler x86 + SSE3 instructions\n3. Assembler X86 + SPEC CPU instructions\n\n");
-	char option = getchar();
-	if (option != '1' && option != '2' && option != '3') {
-		printf_s("INCORRECT OPTION");
-		return 0;
-	}*/
 }
